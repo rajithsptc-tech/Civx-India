@@ -1,0 +1,549 @@
+/**
+ * CIVX India (www.civxindia.com) - Full-Stack Node.js + Express Application
+ * 
+ * Setup & Run:
+ *   1. npm init -y
+ *   2. npm install express
+ *   3. node server.js
+ *   4. Visit http://localhost:3000
+ */
+
+const express = require('express');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware to parse JSON and URL-encoded form bodies
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ============================================================================
+// IN-MEMORY DATABASE (Candidates & Demo Bookings)
+// ============================================================================
+const CANDIDATES = [
+  {
+    id: 1,
+    name: "Aarav Sharma",
+    role: "Frontend Developer",
+    category: "Fresher",
+    city: "Bengaluru",
+    experience: "0 Years (2025 Graduate)",
+    matchScore: 94,
+    skills: ["React.js", "TypeScript", "Tailwind CSS", "UI/UX Design"],
+    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250",
+    transcript: "Namaste! I am Aarav from Bengaluru. I recently graduated with a B.Tech in Computer Science. Over the past year, I built several full-stack web applications using React and Node.js. My passion lies in crafting crisp user interfaces with smooth interactions."
+  },
+  {
+    id: 2,
+    name: "Priya Nair",
+    role: "Data Scientist",
+    category: "Experienced",
+    city: "Kochi",
+    experience: "3 Years",
+    matchScore: 89,
+    skills: ["Python", "PyTorch", "SQL", "Machine Learning", "NLP"],
+    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=250",
+    transcript: "Hi tech recruiters! I'm Priya, a Data Scientist based in Kochi with 3 years of experience specializing in predictive modelling and natural language processing. At my previous firm, I optimized customer retention algorithms by 22%."
+  },
+  {
+    id: 3,
+    name: "Rohan Verma",
+    role: "Product Manager",
+    category: "Experienced",
+    city: "Gurugram",
+    experience: "4 Years",
+    matchScore: 96,
+    skills: ["Product Roadmap", "Agile", "User Research", "Mixpanel", "SQL"],
+    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=250",
+    transcript: "Greetings! I'm Rohan. Over the last 4 years, I've led product strategy for high-growth SaaS tools, taking two major features from 0 to 1 million daily active users. I bridge the gap between engineering, design, and business goals effortlessly."
+  },
+  {
+    id: 4,
+    name: "Ananya Deshmukh",
+    role: "UI/UX Designer",
+    category: "Fresher",
+    city: "Indore",
+    experience: "0 Years (Bootcamp)",
+    matchScore: 87,
+    skills: ["Figma", "Design Systems", "User Testing", "Prototyping"],
+    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
+    avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=250",
+    transcript: "Hi there! I am Ananya from Indore, an aspiring UX designer passionate about accessible user experience. I recently completed an intensive portfolio showcase focused on redesigning healthcare mobile applications."
+  }
+];
+
+const DEMO_REQUESTS = [];
+
+// ============================================================================
+// REST API ENDPOINTS (Node.js Backend)
+// ============================================================================
+
+// 1. Fetch & filter candidates
+app.get('/api/candidates', (req, res) => {
+  try {
+    const { search = '', category = 'All' } = req.query;
+    const filtered = CANDIDATES.filter((c) => {
+      const matchesSearch =
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.role.toLowerCase().includes(search.toLowerCase()) ||
+        c.city.toLowerCase().includes(search.toLowerCase()) ||
+        c.skills.some((s) => s.toLowerCase().includes(search.toLowerCase()));
+      const matchesCategory = category === 'All' || c.category === category;
+      return matchesSearch && matchesCategory;
+    });
+    res.json({ success: true, candidates: filtered });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to load candidates' });
+  }
+});
+
+// 2. AI Video Pitch Vibe Check Endpoint
+app.post('/api/analyze-pitch', (req, res) => {
+  try {
+    const { role = 'Software Engineer' } = req.body;
+    setTimeout(() => {
+      res.json({
+        success: true,
+        analysis: {
+          role,
+          confidence: Math.floor(89 + Math.random() * 8),
+          clarity: Math.floor(90 + Math.random() * 8),
+          wordsPerMinute: Math.floor(135 + Math.random() * 15),
+          transcript: `Namaste hiring team! I am excited to introduce myself for the ${role} role. I bring hands-on project execution, structured problem-solving, and high energy to your team!`,
+          strengths: [
+            "Outstanding vocal clarity & posture alignment",
+            "Structured pitch using STAR technique",
+            "Includes quantifiable project outcomes"
+          ]
+        }
+      });
+    }, 800);
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'AI Analysis failed' });
+  }
+});
+
+// 3. Submit Demo Booking Endpoint
+app.post('/api/book-demo', (req, res) => {
+  try {
+    const { name, email, organization, message } = req.body;
+    if (!name || !email) {
+      return res.status(400).json({ success: false, error: 'Name and email are required.' });
+    }
+    const entry = {
+      id: DEMO_REQUESTS.length + 1,
+      name,
+      email,
+      organization,
+      message,
+      createdAt: new Date().toISOString()
+    };
+    DEMO_REQUESTS.push(entry);
+    console.log('New Demo Request Saved:', entry);
+    res.json({ success: true, message: 'Demo request locked in!', booking: entry });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Could not save booking' });
+  }
+});
+
+// ============================================================================
+// FRONTEND ROUTE (Gen-Z Neo-Brutalist UI served directly from Node.js)
+// ============================================================================
+app.get('/', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CIVX India | www.civxindia.com — End-to-End AI Recruitment</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .neo-shadow { box-shadow: 5px 5px 0px #000000; }
+    .neo-shadow-sm { box-shadow: 3px 3px 0px #000000; }
+    .neo-btn:active { transform: translate(3px, 3px); box-shadow: none; }
+    .page-section { display: none; }
+    .page-section.active { display: block; animation: fadeIn 0.25s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="min-h-screen bg-[#FAF8F5] text-black font-sans selection:bg-[#CCFF00] flex flex-col">
+
+  <!-- Top Marquee Banner -->
+  <div class="bg-black text-[#CCFF00] text-xs py-2.5 px-4 text-center font-black uppercase border-b-2 border-black flex flex-wrap items-center justify-center gap-2">
+    <span>⚡ LIVE AT WWW.CIVXINDIA.COM ✨ End-to-End AI Recruitment — Fresher to C-Suite</span>
+    <button onclick="switchPage('e2e')" class="bg-[#CCFF00] text-black px-2.5 py-0.5 rounded-full font-black hover:bg-white transition cursor-pointer">
+      PEEP PIPELINE &rarr;
+    </button>
+  </div>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b-2 border-black px-4 lg:px-8 py-3.5 flex items-center justify-between">
+    <div onclick="switchPage('home')" class="flex items-center space-x-3 cursor-pointer">
+      <div class="w-10 h-10 rounded-xl bg-[#CCFF00] border-2 border-black neo-shadow-sm flex items-center justify-center font-black text-lg">
+        🎥
+      </div>
+      <div>
+        <h1 class="text-xl font-black tracking-tighter text-black flex items-center gap-1">
+          CIVX <span class="bg-violet-600 text-white px-1.5 rounded-md text-base -rotate-2 inline-block border border-black">INDIA</span>
+        </h1>
+        <p class="text-[10px] text-black font-extrabold tracking-widest uppercase">www.civxindia.com ⚡</p>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="hidden lg:flex items-center space-x-1.5 bg-[#F2EFE9] p-1.5 rounded-2xl border-2 border-black neo-shadow-sm">
+      <button onclick="switchPage('home')" id="nav-home" class="nav-tab px-3.5 py-1.5 rounded-xl text-xs font-black bg-[#CCFF00] border-2 border-black neo-shadow-sm cursor-pointer">Vibe Check (Home)</button>
+      <button onclick="switchPage('e2e')" id="nav-e2e" class="nav-tab px-3.5 py-1.5 rounded-xl text-xs font-black text-black/70 hover:text-black cursor-pointer">🔥 AI Pipeline</button>
+      <button onclick="switchPage('candidates')" id="nav-candidates" class="nav-tab px-3.5 py-1.5 rounded-xl text-xs font-black text-black/70 hover:text-black cursor-pointer">Pitch Studio 🎥</button>
+      <button onclick="switchPage('recruiters')" id="nav-recruiters" class="nav-tab px-3.5 py-1.5 rounded-xl text-xs font-black text-black/70 hover:text-black cursor-pointer">Talent Feed 👀</button>
+      <button onclick="switchPage('roi')" id="nav-roi" class="nav-tab px-3.5 py-1.5 rounded-xl text-xs font-black text-black/70 hover:text-black cursor-pointer">Bag Saver 💸</button>
+      <button onclick="switchPage('contact')" id="nav-contact" class="nav-tab px-3.5 py-1.5 rounded-xl text-xs font-black text-black/70 hover:text-black cursor-pointer">Hit Us Up</button>
+    </nav>
+
+    <div class="flex items-center space-x-2">
+      <button onclick="switchPage('candidates')" class="px-3.5 py-2 rounded-xl bg-white hover:bg-pink-100 border-2 border-black neo-shadow-sm neo-btn text-xs font-black cursor-pointer">
+        Drop Pitch
+      </button>
+      <button onclick="switchPage('contact')" class="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white border-2 border-black neo-shadow-sm neo-btn text-xs font-black cursor-pointer">
+        ✨ Book Demo
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 w-full max-w-7xl mx-auto p-4 lg:p-8">
+
+    <!-- PAGE 1: HOME -->
+    <section id="page-home" class="page-section active space-y-12">
+      <div class="rounded-3xl bg-gradient-to-br from-violet-100 via-[#FAF8F5] to-pink-100 border-2 border-black shadow-[8px_8px_0px_#000] p-8 md:p-14 text-center space-y-8">
+        <div class="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-[#CCFF00] border-2 border-black neo-shadow-sm text-xs font-black uppercase -rotate-1">
+          <span>✨ Main Character Energy • Fresher to C-Suite</span>
+        </div>
+
+        <h1 class="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tighter max-w-4xl mx-auto leading-[1.05]">
+          Resumes Are Mid. <br />
+          <span class="inline-block bg-violet-600 text-white px-4 py-1 rounded-2xl border-2 border-black neo-shadow rotate-1 mt-2">
+            60s Video Pitches Win.
+          </span>
+        </h1>
+
+        <p class="text-black/80 text-base sm:text-xl max-w-3xl mx-auto font-bold">
+          CIVX automates your entire hiring pipeline — sourcing, AI vibe-screening, and instant offers from campus freshers to C-Suite bosses. Powered by Node.js.
+        </p>
+
+        <div class="flex flex-wrap items-center justify-center gap-4">
+          <button onclick="switchPage('e2e')" class="px-7 py-4 rounded-2xl bg-[#CCFF00] hover:bg-[#b8e600] border-2 border-black neo-shadow neo-btn font-black text-sm sm:text-base cursor-pointer">
+            Explore AI Pipeline &rarr;
+          </button>
+          <button onclick="switchPage('recruiters')" class="px-7 py-4 rounded-2xl bg-white hover:bg-pink-100 border-2 border-black neo-shadow neo-btn font-black text-sm sm:text-base cursor-pointer">
+            👀 Browse Cracked Talent
+          </button>
+        </div>
+
+        <div class="pt-8 border-t-2 border-black grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+          <div class="bg-white p-4 rounded-2xl border-2 border-black neo-shadow -rotate-1">
+            <p class="text-3xl font-black text-violet-600">75%</p>
+            <p class="text-xs font-extrabold uppercase">Cheaper Hiring 💸</p>
+          </div>
+          <div class="bg-[#CCFF00] p-4 rounded-2xl border-2 border-black neo-shadow rotate-1">
+            <p class="text-3xl font-black">80%</p>
+            <p class="text-xs font-extrabold uppercase">Faster Screening ⚡</p>
+          </div>
+          <div class="bg-pink-200 p-4 rounded-2xl border-2 border-black neo-shadow -rotate-1">
+            <p class="text-3xl font-black">100%</p>
+            <p class="text-xs font-extrabold uppercase">Autopilot Mode 🤖</p>
+          </div>
+          <div class="bg-cyan-200 p-4 rounded-2xl border-2 border-black neo-shadow rotate-1">
+            <p class="text-2xl sm:text-3xl font-black">0 &rarr; CXO</p>
+            <p class="text-xs font-extrabold uppercase">Every Role Covered 🎯</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 2: END-TO-END PIPELINE -->
+    <section id="page-e2e" class="page-section space-y-8">
+      <div class="bg-violet-600 text-white rounded-3xl border-2 border-black neo-shadow p-8 md:p-12 space-y-4">
+        <span class="inline-block px-3 py-1 rounded-full bg-[#CCFF00] text-black border-2 border-black text-xs font-black uppercase">One Intelligent Pipeline</span>
+        <h2 class="text-3xl sm:text-5xl font-black">End-to-End AI Recruitment That Actually Works</h2>
+        <p class="text-violet-100 text-sm sm:text-base max-w-3xl font-bold">
+          From Fresher to C-Suite — CIVX handles every single stage of recruitment automatically: sourcing, screening, evaluating, and hiring across all tiers of your org.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-[#CCFF00] border-2 border-black neo-shadow rounded-2xl p-6 space-y-3">
+          <h3 class="text-xl font-black">🎓 Fresher & Campus Drives</h3>
+          <p class="text-xs font-bold text-black/80">Mass campus hiring across Tier 1, 2 & 3 Indian cities with instant video pitch scoring and zero resume bias.</p>
+          <p class="text-xs font-black pt-2 border-t-2 border-black">✓ 90% Faster Shortlisting</p>
+        </div>
+        <div class="bg-pink-200 border-2 border-black neo-shadow rounded-2xl p-6 space-y-3">
+          <h3 class="text-xl font-black">💻 Mid to Senior Builders</h3>
+          <p class="text-xs font-bold text-black/80">Multi-agent AI technical & product interviews probing system design, execution speed, and culture fit.</p>
+          <p class="text-xs font-black pt-2 border-t-2 border-black">✓ Real STAR Story Auditing</p>
+        </div>
+        <div class="bg-cyan-200 border-2 border-black neo-shadow rounded-2xl p-6 space-y-3">
+          <h3 class="text-xl font-black">👑 C-Suite & Leadership</h3>
+          <p class="text-xs font-bold text-black/80">High-signal executive intake with leadership vision video pitches, confidential AI vetting, and fast-track closing.</p>
+          <p class="text-xs font-black pt-2 border-t-2 border-black">✓ Board-Ready Talent Briefs</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 3: CANDIDATE PITCH STUDIO -->
+    <section id="page-candidates" class="page-section space-y-8">
+      <div class="bg-white border-2 border-black neo-shadow rounded-3xl p-6 sm:p-8 space-y-6">
+        <div class="border-b-2 border-black pb-4">
+          <h2 class="text-2xl font-black">Creator-Style AI Pitch Studio 🎥</h2>
+          <p class="text-xs text-black/70 font-bold">Test your 60-second video intro against our Node.js AI backend.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="border-2 border-dashed border-black rounded-2xl p-8 text-center space-y-4 bg-violet-50 flex flex-col items-center justify-center">
+            <div class="w-16 h-16 rounded-2xl bg-[#CCFF00] border-2 border-black neo-shadow-sm flex items-center justify-center text-2xl">⬆️</div>
+            <h3 class="text-base font-black">Simulate 60s Pitch Analysis</h3>
+            <select id="pitch-role" class="text-xs font-black border-2 border-black rounded-xl p-2 bg-white">
+              <option value="Software Engineer">Software Engineer</option>
+              <option value="Product Manager">Product Manager</option>
+              <option value="UI/UX Designer">UI/UX Designer</option>
+            </select>
+            <button onclick="runVibeCheck()" id="vibe-btn" class="px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white border-2 border-black neo-shadow-sm neo-btn font-black text-xs cursor-pointer">
+              Run Instant AI Vibe Check ✨
+            </button>
+          </div>
+
+          <div id="ai-scorecard" class="bg-[#FAF8F5] border-2 border-black neo-shadow-sm p-6 rounded-2xl space-y-4">
+            <h3 class="text-sm font-black uppercase">✨ Your AI Scorecard</h3>
+            <p class="text-xs text-black/70 font-bold italic">Click "Run Instant AI Vibe Check" to call <code>POST /api/analyze-pitch</code>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 4: RECRUITER TALENT FEED -->
+    <section id="page-recruiters" class="page-section space-y-8">
+      <div class="bg-white border-2 border-black neo-shadow rounded-3xl p-6 sm:p-8 space-y-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b-2 border-black pb-4">
+          <div>
+            <h2 class="text-2xl font-black">Cracked Talent Feed 👀</h2>
+            <p class="text-xs text-black/70 font-bold">Live candidates fetched from <code>GET /api/candidates</code>.</p>
+          </div>
+          <div class="flex gap-2">
+            <input id="talent-search" oninput="loadCandidates()" type="text" placeholder="Search role, city..." class="px-3 py-1.5 text-xs font-bold rounded-xl border-2 border-black bg-[#FAF8F5]" />
+            <select id="talent-category" onchange="loadCandidates()" class="text-xs font-black border-2 border-black rounded-xl p-1.5 bg-white">
+              <option value="All">All Levels</option>
+              <option value="Fresher">Freshers</option>
+              <option value="Experienced">Experienced</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="candidates-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+          <!-- Populated dynamically via Node.js API -->
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 5: ROI CALCULATOR -->
+    <section id="page-roi" class="page-section space-y-8">
+      <div class="bg-white border-2 border-black neo-shadow rounded-3xl p-6 sm:p-8 space-y-6">
+        <div class="border-b-2 border-black pb-4">
+          <h2 class="text-2xl font-black">Bag Saver: ROI Calculator 💸</h2>
+          <p class="text-xs text-black/70 font-bold">Slide to calculate monthly INR savings with CIVX AI.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+          <div class="space-y-6">
+            <div>
+              <div class="flex justify-between text-xs font-black mb-2">
+                <span>Monthly Hires</span>
+                <span id="label-hires" class="bg-[#CCFF00] px-2 py-0.5 rounded border border-black">15 Hires</span>
+              </div>
+              <input id="input-hires" oninput="updateROI()" type="range" min="1" max="100" value="15" class="w-full accent-violet-600" />
+            </div>
+            <div>
+              <div class="flex justify-between text-xs font-black mb-2">
+                <span>Agency Cost Per Hire (₹)</span>
+                <span id="label-cost" class="bg-cyan-200 px-2 py-0.5 rounded border border-black">₹45,000</span>
+              </div>
+              <input id="input-cost" oninput="updateROI()" type="range" min="15000" max="150000" step="5000" value="45000" class="w-full accent-violet-600" />
+            </div>
+          </div>
+
+          <div class="bg-[#FAF8F5] p-6 rounded-2xl border-2 border-black neo-shadow-sm space-y-4">
+            <div class="p-5 bg-[#CCFF00] border-2 border-black rounded-2xl space-y-1">
+              <p class="text-xs font-black uppercase">Total Cash Saved 💰</p>
+              <p id="roi-saved" class="text-3xl sm:text-4xl font-black">₹5,06,250</p>
+              <p class="text-xs font-extrabold">75% Reduction vs Traditional Hiring</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 6: CONTACT -->
+    <section id="page-contact" class="page-section">
+      <div class="bg-white border-2 border-black neo-shadow rounded-3xl p-6 sm:p-10 space-y-6 max-w-2xl mx-auto">
+        <div class="text-center space-y-2">
+          <span class="inline-block px-3 py-1 rounded-full bg-[#CCFF00] border-2 border-black text-xs font-black uppercase">Let's Link Up ⚡</span>
+          <h2 class="text-3xl font-black">Book Your CIVX AI Demo</h2>
+          <p class="text-xs text-black/70 font-bold">Official Portal: <span class="underline text-violet-700">www.civxindia.com</span> • hello@civxindia.com</p>
+        </div>
+
+        <form id="demo-form" onsubmit="submitDemoForm(event)" class="space-y-4">
+          <input required id="demo-name" type="text" placeholder="Your Name (e.g. Aarav Sharma)" class="w-full p-3 text-xs font-bold rounded-xl border-2 border-black bg-[#FAF8F5]" />
+          <input required id="demo-email" type="email" placeholder="Work Email (aarav@company.com)" class="w-full p-3 text-xs font-bold rounded-xl border-2 border-black bg-[#FAF8F5]" />
+          <input required id="demo-org" type="text" placeholder="Company / College Name" class="w-full p-3 text-xs font-bold rounded-xl border-2 border-black bg-[#FAF8F5]" />
+          <textarea id="demo-msg" rows="3" placeholder="Roles you're hiring for..." class="w-full p-3 text-xs font-bold rounded-xl border-2 border-black bg-[#FAF8F5]"></textarea>
+          <button type="submit" class="w-full py-3.5 bg-violet-600 hover:bg-violet-500 text-white border-2 border-black neo-shadow-sm font-black text-xs rounded-xl cursor-pointer">
+            Send Request 🚀
+          </button>
+        </form>
+        <div id="demo-status" class="hidden p-4 bg-[#CCFF00] border-2 border-black rounded-2xl text-center font-black text-xs"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Video Preview Modal -->
+  <div id="video-modal" class="hidden fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border-2 border-black shadow-[8px_8px_0px_#CCFF00] p-6 max-w-xl w-full space-y-4 relative">
+      <button onclick="closeModal()" class="absolute top-4 right-4 px-3 py-1 rounded-xl bg-[#CCFF00] border-2 border-black font-black text-xs cursor-pointer">✕ Close</button>
+      <h3 id="modal-name" class="text-lg font-black"></h3>
+      <p id="modal-role" class="text-xs text-violet-700 font-extrabold"></p>
+      <video id="modal-video" controls class="w-full aspect-video bg-black rounded-2xl border-2 border-black"></video>
+      <p id="modal-transcript" class="text-xs bg-[#FAF8F5] p-3 rounded-xl border-2 border-black italic font-medium"></p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="mt-auto border-t-2 border-black bg-white py-6 px-4 text-center text-xs space-y-2">
+    <p class="font-black uppercase">CIVX India (www.civxindia.com) ⚡ Powered by Node.js & Express</p>
+    <p class="font-bold text-black/70">Ditch boring resumes. Screen faster, cut hiring costs by 75%, and hire cracked talent.</p>
+  </footer>
+
+  <!-- Client-Side Interactive JS communicating with Node.js APIs -->
+  <script>
+    function switchPage(pageId) {
+      document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+      document.getElementById('page-' + pageId).classList.add('active');
+
+      document.querySelectorAll('.nav-tab').forEach(btn => {
+        btn.className = 'nav-tab px-3.5 py-1.5 rounded-xl text-xs font-black text-black/70 hover:text-black cursor-pointer';
+      });
+      const activeBtn = document.getElementById('nav-' + pageId);
+      if (activeBtn) {
+        activeBtn.className = 'nav-tab px-3.5 py-1.5 rounded-xl text-xs font-black bg-[#CCFF00] border-2 border-black neo-shadow-sm cursor-pointer';
+      }
+      if (pageId === 'recruiters') loadCandidates();
+    }
+
+    async function loadCandidates() {
+      const search = document.getElementById('talent-search').value;
+      const category = document.getElementById('talent-category').value;
+      const res = await fetch(\`/api/candidates?search=\${encodeURIComponent(search)}&category=\${encodeURIComponent(category)}\`);
+      const data = await res.json();
+      const grid = document.getElementById('candidates-grid');
+      grid.innerHTML = data.candidates.map(c => \`
+        <div class="bg-[#FAF8F5] border-2 border-black neo-shadow-sm rounded-2xl p-4 space-y-3 flex flex-col justify-between">
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <img src="\${c.avatar}" class="w-12 h-12 rounded-xl object-cover border-2 border-black" />
+              <span class="px-2.5 py-1 rounded-full bg-[#CCFF00] border border-black text-[10px] font-black">\${c.matchScore}% MATCH 🔥</span>
+            </div>
+            <h3 class="text-base font-black">\${c.name}</h3>
+            <p class="text-xs text-violet-700 font-extrabold">\${c.role}</p>
+            <p class="text-[11px] text-black/70 font-bold">\${c.city} • \${c.experience}</p>
+            <div class="flex flex-wrap gap-1">
+              \${c.skills.map(s => \`<span class="px-2 py-0.5 rounded bg-white border border-black text-[10px] font-bold">\${s}</span>\`).join('')}
+            </div>
+          </div>
+          <button onclick='openModal(\${JSON.stringify(c)})' class="w-full mt-3 py-2 bg-black hover:bg-violet-600 text-white border-2 border-black font-black text-xs rounded-xl cursor-pointer">
+            ▶ Watch 60s Pitch
+          </button>
+        </div>
+      \`).join('');
+    }
+
+    function openModal(c) {
+      document.getElementById('modal-name').innerText = c.name;
+      document.getElementById('modal-role').innerText = c.role + ' • ' + c.experience;
+      const vid = document.getElementById('modal-video');
+      vid.src = c.videoUrl;
+      document.getElementById('modal-transcript').innerText = '"' + c.transcript + '"';
+      document.getElementById('video-modal').classList.remove('hidden');
+      vid.play();
+    }
+
+    function closeModal() {
+      const vid = document.getElementById('modal-video');
+      vid.pause();
+      document.getElementById('video-modal').classList.add('hidden');
+    }
+
+    async function runVibeCheck() {
+      const btn = document.getElementById('vibe-btn');
+      const role = document.getElementById('pitch-role').value;
+      btn.innerText = 'AI Cooking Feedback...';
+      const res = await fetch('/api/analyze-pitch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role })
+      });
+      const { analysis } = await res.json();
+      btn.innerText = 'Run Instant AI Vibe Check ✨';
+      document.getElementById('ai-scorecard').innerHTML = \`
+        <h3 class="text-sm font-black uppercase">✨ Your AI Scorecard (\${analysis.role})</h3>
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="bg-[#CCFF00] p-2.5 rounded-xl border-2 border-black"><p class="text-[10px] font-black">CONFIDENCE</p><p class="text-lg font-black">\${analysis.confidence}%</p></div>
+          <div class="bg-pink-200 p-2.5 rounded-xl border-2 border-black"><p class="text-[10px] font-black">CLARITY</p><p class="text-lg font-black">\${analysis.clarity}%</p></div>
+          <div class="bg-cyan-200 p-2.5 rounded-xl border-2 border-black"><p class="text-[10px] font-black">PACE</p><p class="text-lg font-black">\${analysis.wordsPerMinute} WPM</p></div>
+        </div>
+        <p class="text-xs bg-white p-3 rounded-xl border-2 border-black italic">"\${analysis.transcript}"</p>
+        <ul class="text-xs font-bold list-disc list-inside">
+          \${analysis.strengths.map(s => \`<li>\${s}</li>\`).join('')}
+        </ul>
+      \`;
+    }
+
+    function updateROI() {
+      const hires = Number(document.getElementById('input-hires').value);
+      const cost = Number(document.getElementById('input-cost').value);
+      document.getElementById('label-hires').innerText = hires + ' Hires';
+      document.getElementById('label-cost').innerText = '₹' + cost.toLocaleString('en-IN');
+      const saved = Math.round(hires * cost * 0.75);
+      document.getElementById('roi-saved').innerText = '₹' + saved.toLocaleString('en-IN');
+    }
+
+    async function submitDemoForm(e) {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById('demo-name').value,
+        email: document.getElementById('demo-email').value,
+        organization: document.getElementById('demo-org').value,
+        message: document.getElementById('demo-msg').value
+      };
+      const res = await fetch('/api/book-demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      const status = document.getElementById('demo-status');
+      status.innerText = '🔒 ' + data.message + ' We will reach out to ' + payload.email + ' shortly.';
+      status.classList.remove('hidden');
+      document.getElementById('demo-form').reset();
+    }
+
+    loadCandidates();
+  </script>
+</body>
+</html>`);
+});
+
+// Start Express Server
+app.listen(PORT, () => {
+  console.log(\`🚀 CIVX India (www.civxindia.com) Node.js server running at http://localhost:\${PORT}\`);
+});
